@@ -30,6 +30,11 @@ import multiprocessing
 import time
 
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")  # Force a non-interactive backend: Streamlit has no
+                        # GUI event loop, and this avoids any chance of
+                        # matplotlib trying to open a window on machines
+                        # where a different backend is the default.
 import matplotlib.pyplot as plt
 import streamlit as st
 from PIL import Image
@@ -38,6 +43,13 @@ import sequential
 import parallel
 import benchmark
 import image_operations as ops
+
+# On Windows, multiprocessing uses the "spawn" start method and re-imports
+# this module in each worker process. freeze_support() is a no-op on
+# Linux/macOS but is the officially recommended safety call for any script
+# that uses multiprocessing.Pool and might be frozen into an .exe or run in
+# unusual ways on Windows.
+multiprocessing.freeze_support()
 
 
 st.set_page_config(page_title="Parallel Image Processing System", layout="wide")
@@ -178,9 +190,9 @@ if run_clicked:
 
             col1, col2 = st.columns(2)
             with col1:
-                st.image(image_arr, caption="Original Image", use_container_width=True)
+                st.image(image_arr, caption="Original Image", width="stretch")
             with col2:
-                st.image(result, caption="Processed Image", use_container_width=True)
+                st.image(result, caption="Processed Image", width="stretch")
 
             st.metric("Sequential Time", f"{seq_time:.3f} s")
 
@@ -192,9 +204,9 @@ if run_clicked:
 
             col1, col2 = st.columns(2)
             with col1:
-                st.image(image_arr, caption="Original Image", use_container_width=True)
+                st.image(image_arr, caption="Original Image", width="stretch")
             with col2:
-                st.image(result, caption="Processed Image", use_container_width=True)
+                st.image(result, caption="Processed Image", width="stretch")
 
             st.metric("Parallel Time", f"{par_time:.3f} s")
             st.metric("Workers", num_workers)
@@ -207,16 +219,16 @@ if run_clicked:
 
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.image(image_arr, caption="Original Image", use_container_width=True)
+                st.image(image_arr, caption="Original Image", width="stretch")
             with col2:
                 st.image(
                     comparison["sequential_result"],
-                    caption="Sequential Result", use_container_width=True,
+                    caption="Sequential Result", width="stretch",
                 )
             with col3:
                 st.image(
                     comparison["parallel_result"],
-                    caption="Parallel Result", use_container_width=True,
+                    caption="Parallel Result", width="stretch",
                 )
 
             m1, m2, m3, m4, m5 = st.columns(5)

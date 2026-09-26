@@ -157,16 +157,24 @@ def _process_parallel_resize(arr: np.ndarray, params: dict, num_workers: int):
     bands = [arr[start:end] for (start, end) in boundaries]
     new_width = max(1, int(round(width * scale)))
 
-    # Compute each band's target height from CUMULATIVE rounded boundaries
-    # (not band_height * scale independently per band). This is what makes
-    # the stacked bands add up to exactly the same total height as
-    # resizing the whole image at once (round(height * scale)), rather than
-    # accumulating small rounding drift from each band rounding separately.
+    # The TRUE target total height is whatever a whole-image resize would
+    # produce (same formula as image_operations.resize_whole - including
+    # its own "at least 1 pixel" floor). Every band boundary is then mapped
+    # into that exact target space via `row * target_h / height`, rounded.
+    # Because this is one continuous, monotonic mapping from [0, height] to
+    # [0, target_h], the boundaries always start at 0 and end at exactly
+    # target_h - so the bands' heights always sum to precisely target_h,
+    # matching resize_whole exactly, no matter how many workers are used or
+    # how small the image/scale is. Individual bands are allowed to round
+    # down to 0 rows in this process (handled by image_operations.resize_band)
+    # rather than being padded to a minimum of 1, which would inflate the
+    # combined total above the correct target height.
+    target_h = max(1, int(round(height * scale)))
     new_heights = []
     for (start, end) in boundaries:
-        new_start = int(round(start * scale))
-        new_end = int(round(end * scale))
-        new_heights.append(max(1, new_end - new_start))
+        new_start = int(round(start * target_h / height)) if height > 0 else 0
+        new_end = int(round(end * target_h / height)) if height > 0 else 0
+        new_heights.append(new_end - new_start)
 
     tasks = [
         (band, new_width, new_h) for band, new_h in zip(bands, new_heights)
@@ -175,7 +183,17 @@ def _process_parallel_resize(arr: np.ndarray, params: dict, num_workers: int):
     with Pool(processes=num_chunks) as pool:
         results = pool.map(_resize_worker, tasks)
 
-    return np.vstack(results)
+    combined = np.vstack(results)
+
+    # Extremely rare edge case: if every band rounded down to 0 rows (can
+    # only happen on a pathologically tiny image at a very small scale),
+    # fall back to a direct whole-image resize so the output is never
+    # completely empty.
+    if combined.shape[0] == 0:
+        import image_operations as ops
+        return ops.resize_whole(arr, scale)
+
+    return combined
 
 
 def ops_halo_radius(operation: str, params: dict) -> int:

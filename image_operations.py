@@ -207,6 +207,13 @@ def resize_band(band: np.ndarray, new_width: int, new_height: int) -> np.ndarray
     how new_height is chosen so that all bands stacked together add up to
     exactly the same total height as a whole-image resize).
 
+    A band can legitimately be asked to resize down to 0 rows (this happens
+    when downscaling a very small image with many workers, so that a given
+    band's own share of the output has no rows at all) - in that case we
+    return an empty array of the right width/dtype rather than forcing a
+    minimum of 1 row, which would make the combined output taller than a
+    whole-image resize.
+
     IMPORTANT LIMITATION (explained in the README and the app's UI):
     Resizing is not a pointwise operation - a proper resize filter (even
     "simple" bilinear interpolation) blends together neighboring pixels,
@@ -224,8 +231,10 @@ def resize_band(band: np.ndarray, new_width: int, new_height: int) -> np.ndarray
     halo like Blur/Sharpen/Edge Detection, adding real complexity for a
     fairly small visual benefit).
     """
-    new_height = max(1, int(new_height))
     new_width = max(1, int(new_width))
+    new_height = int(new_height)
+    if new_height <= 0:
+        return np.zeros((0, new_width, 3), dtype=np.uint8)
     img = Image.fromarray(band.astype(np.uint8))
     resized = img.resize((new_width, new_height), Image.Resampling.BILINEAR)
     return np.array(resized)

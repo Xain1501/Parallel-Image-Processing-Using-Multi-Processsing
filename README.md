@@ -19,6 +19,20 @@ pieces at the same time, on different CPU cores.
 This project is a Streamlit web app where you upload an image, choose an
 operation, and watch the sequential and parallel versions race.
 
+> **Tested status:** every operation (Grayscale, Blur, Edge Detection,
+> Sharpen, Resize) has been run through the full app — upload, every
+> processing mode (Sequential / Parallel / Compare Both), and the
+> benchmark sweep — using Streamlit's own automated `AppTest` framework,
+> with zero exceptions and zero errors across all 15
+> operation × mode combinations. Sequential and parallel outputs were
+> also diffed pixel-by-pixel: Grayscale, Blur, Edge Detection, and
+> Sharpen are pixel-**identical** between sequential and parallel at
+> every worker count (1, 2, 3, 4, 8) and on tiny (1x1, 1xN), odd-sized,
+> and normal images alike. Resize matches sequential output's exact
+> dimensions in every case, with the small pixel differences described
+> in Section 10 below. Invalid/corrupted uploads are caught and shown
+> as a friendly in-app error rather than crashing.
+
 ## 2. Problem Statement
 
 A single CPU core can only do one thing at a time. As images get larger,
