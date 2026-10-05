@@ -19,6 +19,12 @@ pieces at the same time, on different CPU cores.
 This project is a Streamlit web app where you upload an image, choose an
 operation, and watch the sequential and parallel versions race.
 
+> **App hanging or printing a huge wall of import errors ending in
+> `KeyboardInterrupt` when you click Process/Benchmark on Windows?** This
+> was a real bug caught and fixed in this project — see "Windows +
+> multiprocessing note" under Section 18 for the full explanation of what
+> was happening and how `app.py` now avoids it.
+
 > **Tested status:** every operation (Grayscale, Blur, Edge Detection,
 > Sharpen, Resize) has been run through the full app — upload, every
 > processing mode (Sequential / Parallel / Compare Both), and the
@@ -401,16 +407,47 @@ streamlit run app.py
 Then open the URL Streamlit prints (usually `http://localhost:8501`) in
 your browser.
 
-### Windows + multiprocessing note
+### Windows + multiprocessing note (important — read if the app seems to hang)
 
-Windows uses the "spawn" start method for new processes, which re-imports
-your script in each child process. This project is safe on Windows because
-`multiprocessing.Pool()` is only ever created **inside function calls**
-(triggered by a button click in `app.py`, defined in `parallel.py` and
-used by `benchmark.py`) — never at module import time / top level. If you
-ever extend this project and add new multiprocessing code, keep that same
-rule: never create a `Pool` or start a `Process` at the top level of a
-script that might get re-imported.
+Windows uses the **"spawn"** start method for new processes: every time
+`multiprocessing.Pool()` creates a worker, Windows has to start a brand
+new Python process and re-import your script into it from scratch (Linux
+and macOS use "fork" instead, which copies the already-running process in
+memory and doesn't have this issue — this is why the behavior below is
+Windows-specific).
+
+Streamlit runs `app.py` by exec-ing it as `sys.modules['__main__']`, so
+that `if __name__ == "__main__":` works the way it would in a normal
+script. Combined with Windows' spawn behavior, this means: **every worker
+process re-imports this entire file**, with `__name__` set to
+`"__mp_main__"` instead of `"__main__"`.
+
+All of the Streamlit UI code in this project lives inside a `main()`
+function, which is only called from:
+
+```python
+if __name__ == "__main__":
+    multiprocessing.freeze_support()
+    main()
+```
+
+Because a spawned worker's `__name__` is `"__mp_main__"`, not
+`"__main__"`, this condition is `False` in every worker — so workers skip
+straight past the UI entirely. `streamlit` and `matplotlib` are also
+imported *inside* `main()` rather than at the top of the file, so a
+worker process never even imports them.
+
+**If you ever edit this project and add a Streamlit call (`st.something(...)`)
+outside of `main()`, or move a heavy import back to the top of the file,
+you will reintroduce this bug**: every worker you spawn will try to
+re-run the whole Streamlit app with no real server behind it, which
+shows up as the app hanging on "Process Image" / "Run Benchmark" and,
+if you hit Ctrl+C, a huge wall of import tracebacks ending in
+`KeyboardInterrupt` (because the process was stuck mid-import of
+streamlit/matplotlib/numpy, not because of an actual bug in your
+calculation code). The fix is always the same: make sure *every* line of
+Streamlit UI code is reachable only through `main()`, called only inside
+the `if __name__ == "__main__":` guard.
 
 ## 19. Project Structure
 
