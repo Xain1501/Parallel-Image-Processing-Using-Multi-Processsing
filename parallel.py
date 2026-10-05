@@ -61,6 +61,16 @@ def _row_boundaries(height: int, num_chunks: int):
     return boundaries
 
 
+def get_chunk_boundaries(height: int, num_workers: int):
+    """Public helper: the exact row boundaries each worker will be assigned
+    for an image of the given height and worker count. Used by app.py to
+    draw a visual overlay showing how the image was actually split, so the
+    UI can *show* the chunking rather than describe it in text.
+    """
+    num_chunks = max(1, min(num_workers, height))
+    return _row_boundaries(height, num_chunks)
+
+
 def _split_with_halo(arr: np.ndarray, num_chunks: int, halo: int):
     """Split an image into `num_chunks` row-bands, each grown by `halo`
     extra rows above/below (clamped at the image edges).

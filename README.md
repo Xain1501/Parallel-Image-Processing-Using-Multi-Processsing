@@ -346,16 +346,22 @@ Workers | Time | Speedup | Efficiency
 
 ## 15. Results / UI Overview
 
+The interface is deliberately lean - it's built to demonstrate the
+concepts by letting you *see* them happen, not by explaining them in
+on-screen paragraphs (that's what this README is for).
+
 - **Sequential / Parallel / Compare Both** modes, each showing the
   original and processed image side by side.
+- In **Parallel** and **Compare Both** modes, a colored overlay is shown
+  on the original image with a band for each worker, drawn from the exact
+  row boundaries `parallel.py` actually used for that run (see
+  `parallel.get_chunk_boundaries()`) - so you can literally see how the
+  image was split, rather than reading a description of chunking.
 - Live metrics: Sequential Time, Parallel Time, Speedup, Efficiency,
-  Workers.
-- In "Compare Both" mode, a consistency check reports the mean pixel-value
-  difference between the sequential and parallel outputs, so you can see
-  for yourself how close (or identical) they are.
-- Expandable sections explaining: how parallel processing works, data
-  parallelism, why `multiprocessing` (not threads) is used, and speedup
-  limitations.
+  Workers, and (in Compare Both) the mean pixel-value difference between
+  the sequential and parallel outputs.
+- A benchmark table and two charts (Workers vs Time, Workers vs Speedup)
+  from the "Run Benchmark" button.
 
 ## 16. Limitations
 
